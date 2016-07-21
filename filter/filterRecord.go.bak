@@ -1,0 +1,127 @@
+//将某一时间段的数据提取出来,放在buffer中
+package filterbak
+
+import (
+	"os"
+	"statUpload/mylog"
+	"strings"
+	"time"
+)
+
+/*
+function:从日志文件中筛选需要的记录内容(上一分钟的内容)
+inpurt:stat日志文件名
+output:上一分钟的日志内容,string类型的buffer
+*/
+func ReadRecord(fileName string, bizKey string) (recordBuff string) {
+
+	//获取上一分钟
+	tPreMin := time.Now().Unix() - 60
+	tPreMinStr := time.Unix(tPreMin, 0).Format(TimeLayOut)
+
+	//获取当前时间
+	tNowMin := time.Now().Unix()
+	tNowMinStr := time.Unix(tNowMin, 0).Format(TimeLayOut)
+
+	onReadLog, err := os.OpenFile(fileName, O_RDONLY, 0666)
+	defer onReadLog.Close()
+
+	if err != nil {
+		runLog.MyLog(bizKey, runLog.ERROR, "Open statlog Failed !!!", 1)
+		return
+	}
+
+	//预读取大小2MB
+	var buffSize int64 = 2 * 1024 * 1024
+	scanBuff := make([]byte, buffSize)
+
+	//从文件尾部开始读取,大小为buffSize
+	onReadLog.Seek(-buffSize, SEEK_END)
+
+	//将读取到的内容存放在scanBuff中,此时位置又回到文件末尾
+	rdBlock, _ := onReadLog.Read(scanBuff)
+
+	//匹配时间字符串第一次出现的位置,返回-1表示未找到
+	//firstPOS := strings.Index(string(scanBuff), "2016-05-19 21:15")
+	//endPOS := strings.Index(string(scanBuff), "2016-05-19 21:16")
+	firstPOS := strings.Index(string(scanBuff), tPreMinStr)
+	endPOS := strings.Index(string(scanBuff), tNowMinStr)
+
+	//第一次读取时未找到,需要扩大范围
+	var foundCNT int64 = 1
+	rdSumBlock := rdBlock
+	for -1 == firstPOS {
+		rdSumBlock += rdBlock
+		//最大范围是10*buffSize
+		if 10 < foundCNT {
+			runLog.MyLog(bizKey, runLog.ERROR, fileName+" Not Found in 10 times of buffSize !!!", 1)
+			return
+		}
+		foundCNT += 1
+		onReadLog.Seek(-buffSize*foundCNT, SEEK_END)
+		rdBlock, _ = onReadLog.Read(scanBuff)
+		firstPOS = strings.Index(string(scanBuff), tPreMinStr)
+		endPOS = strings.Index(string(scanBuff), tNowMinStr)
+	}
+
+	onReadLog.Seek(-int64(rdSumBlock), SEEK_END)
+	//找到时间字符串位置了,需要再次定位下离时间最近的“=”字符串
+	firstPOS = strings.LastIndex(string(scanBuff[:firstPOS]), "=")
+	if -1 != endPOS {
+		endPOS = strings.LastIndex(string(scanBuff[:endPOS]), "=")
+	}
+
+	//可能该分钟的数据大小超过buffSize
+	//此处再次往前读取,已确保没有漏掉数据,直到找不到
+	secondPOS := -1
+	var curPOS int64 = 0
+	for {
+		//先定位下当前位置
+		curPOS, _ = onReadLog.Seek(int64(0), SEEK_CUR)
+		//需要扫描的范围不足buffSize,需要特殊处理
+		if curPOS < buffSize {
+			break
+		}
+		onReadLog.Seek(-buffSize, SEEK_CUR)
+		rdBlock, _ = onReadLog.Read(scanBuff)
+
+		secondPOS = strings.Index(string(scanBuff), tPreMinStr)
+		//找到了,更新位置,继续找,直到找不到
+		if -1 != secondPOS {
+			firstPOS = strings.LastIndex(string(scanBuff[:secondPOS]), "=")
+		} else {
+			break
+		}
+
+		rdSumBlock += rdBlock
+		onReadLog.Seek(-int64(rdSumBlock), SEEK_END)
+
+	}
+
+	//特殊处理
+	if curPOS < buffSize {
+		lastBuff := curPOS
+		tmpbuf := make([]byte, lastBuff)
+		onReadLog.Seek(-lastBuff, SEEK_CUR)
+		onReadLog.Read(tmpbuf)
+		secondPOS = strings.Index(string(tmpbuf), tPreMinStr)
+		if -1 != secondPOS {
+			firstPOS = strings.LastIndex(string(tmpbuf[:secondPOS]), "=")
+			rdSumBlock += int(lastBuff)
+			onReadLog.Seek(-int64(rdSumBlock), SEEK_END)
+		}
+	}
+
+	//最终确定第一次出现的位置
+	onReadLog.Seek(-(int64(rdSumBlock - firstPOS)), SEEK_END)
+	var dataSize int
+	if -1 == endPOS {
+		dataSize = rdSumBlock - firstPOS
+	} else {
+		dataSize = endPOS - firstPOS
+	}
+	tmpbuf := make([]byte, dataSize)
+	onReadLog.Read(tmpbuf)
+	recordBuff = string(tmpbuf)
+	return
+}

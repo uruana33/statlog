@@ -1,0 +1,21 @@
+[CMD_DEL]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_GET]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_GETALL]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_GETOPTION]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_MULGET]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_OPLIST]
+igncode = [3001, 3002, 3020, 3022]
+
+[CMD_SET]
+igncode = [3001, 3002, 3020, 3022]
+
