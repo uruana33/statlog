@@ -2,6 +2,7 @@ package zkconfig
 
 import (
 	"log"
+	"statUpload/parseConfig"
 	"strconv"
 	"strings"
 	"time"
@@ -19,8 +20,10 @@ var InitConfMap map[string]string
 
 func connect() *zk.Conn {
 
+	//测试环境ZK地址
+	//var zkhosts string = "zk1.staging.srv:2181,zk2.staging.srv:2181,zk3.staging.srv:2181,zk4.staging.srv:2181"
 	//线上环境ZK地址
-	var zkhosts string = "host1:port1,host2:port2"
+	var zkhosts string = "c3-hadoop-srv-ct01.bj:11000,c3-hadoop-srv-ct02.bj:11000,c3-hadoop-srv-ct03.bj:11000,c3-hadoop-srv-ct04.bj:11000,c3-hadoop-srv-ct05.bj:11000"
 	var servers []string = strings.Split(zkhosts, ",")
 	conn, _, err := zk.Connect(servers, time.Second*3)
 	if err != nil {
@@ -51,30 +54,19 @@ func mirror(conn *zk.Conn, path string) (chan []byte, chan error) {
 	return snapshots, errors
 }
 
-func GetZKConfig(xboxJobGrpName string) {
+func GetZKConfig() {
 
-	zkWhilteListURL := strings.Join([]string{"/ophy-statistics", "mistore", xboxJobGrpName, "WhiteList"}, "/")
-	zkInitURL := strings.Join([]string{"/ophy-statistics", "mistore", xboxJobGrpName, "init"}, "/")
-	zkServiceURL := strings.Join([]string{"/ophy-statistics", "mistore", xboxJobGrpName, "services"}, "/")
+	zkWhilteListURL := parseConfig.StatConfig["zkWhiteList"]
+	zkServiceURL := parseConfig.StatConfig["zkServices"]
 
-	/*
-		zkWhilteListURL := strings.Join([]string{"/ophy-statistics", "milink", "access", xboxJobGrpName, "WhiteList"}, "/")
-		zkInitURL := strings.Join([]string{"/ophy-statistics", "milink", "access", xboxJobGrpName, "init"}, "/")
-		zkServiceURL := strings.Join([]string{"/ophy-statistics", "milink", "access", xboxJobGrpName, "services"}, "/")
-
-	*/
 	conn1 := connect()
 	defer conn1.Close()
 
 	conn2 := connect()
 	defer conn2.Close()
 
-	conn3 := connect()
-	defer conn3.Close()
-
 	snapshots1, errs1 := mirror(conn1, zkWhilteListURL)
-	snapshots2, errs2 := mirror(conn2, zkInitURL)
-	snapshots3, errs3 := mirror(conn3, zkServiceURL)
+	snapshots2, errs2 := mirror(conn2, zkServiceURL)
 
 	for {
 		select {
@@ -85,16 +77,10 @@ func GetZKConfig(xboxJobGrpName string) {
 			panic(err1)
 
 		case snap2 := <-snapshots2:
-			InitCont = snap2
-			InitConfMap = getInitConf()
+			ServiceCont = snap2
+			ServiceConfMap = getServiceConf()
 		case err2 := <-errs2:
 			panic(err2)
-
-		case snap3 := <-snapshots3:
-			ServiceCont = snap3
-			ServiceConfMap = getServiceConf()
-		case err3 := <-errs3:
-			panic(err3)
 		}
 	}
 }
@@ -182,32 +168,7 @@ func getWhiteListMap() (myWhiteListMap map[string]map[string][]int64) {
 	return
 }
 
-func getInitConf() (myInitConf map[string]string) {
-	myInitConf = make(map[string]string)
-	if 0 == len(InitCont) {
-		log.Println("Init configuration is NULL on ZK !!!")
-		return
-	}
-	initContLine := strings.Split(string(InitCont), "\r\n")
-	for _, initCont := range initContLine {
-
-		if strings.Contains(initCont, "[") || !strings.Contains(initCont, "=") || 2 > len(initCont) || strings.HasPrefix(initCont, "#") {
-			continue
-		}
-
-		aList := strings.SplitN(initCont, "=", 2)
-		k := aList[0]
-		v := aList[1]
-		option := strings.TrimSpace(k)
-		value := strings.TrimSpace(v)
-		myInitConf[option] = value
-	}
-	return
-}
-
 func getServiceConf() (myServiceConf map[string]map[string]string) {
-
-	myServiceConf = make(map[string]map[string]string)
 
 	if 0 == len(ServiceCont) {
 		log.Println("Service configuration is NULL on ZK !!!")
@@ -215,6 +176,7 @@ func getServiceConf() (myServiceConf map[string]map[string]string) {
 	}
 
 	var bizStr string
+	myServiceConf = make(map[string]map[string]string)
 	srvContLine := strings.Split(string(ServiceCont), "\r\n")
 	for _, srvCont := range srvContLine {
 
@@ -225,21 +187,18 @@ func getServiceConf() (myServiceConf map[string]map[string]string) {
 		if 2 > len(srvCont) {
 			continue
 		} else {
-			if strings.Contains(srvCont, "[") && strings.Contains(srvCont, "]") {
-
+			//if strings.Contains(srvCont, "[") && strings.Contains(srvCont, "]") {
+			if strings.HasPrefix(srvCont, "[") && strings.HasSuffix(srvCont, "]") {
 				bizStr = strings.TrimSpace(strings.Trim(strings.Trim(srvCont, "["), "]"))
-
 				if 0 == len(bizStr) {
 					log.Println("Configuration is Error on ZK miss service Name!!!")
 					return
 				}
-
 				if _, ok := myServiceConf[bizStr]; !ok {
 					myServiceConf[bizStr] = make(map[string]string)
 				}
 				continue
 			}
-
 			if !strings.Contains(srvCont, "=") {
 				continue
 			}

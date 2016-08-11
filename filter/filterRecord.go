@@ -3,7 +3,6 @@ package filter
 import (
 	"os"
 	"regexp"
-	"statUpload/mylog"
 	"syscall"
 	"time"
 )
@@ -13,12 +12,11 @@ function:从日志文件中筛选需要的记录内容(上一分钟的内容)
 inpurt:stat日志文件名
 output:上一分钟的日志内容,string类型的buffer
 */
-func ReadRecord(fileName string, bizKey string) (recordBuff string) {
+func ReadRecord(fileName string, bizKey string) []byte {
 	ff, err := os.OpenFile(fileName, syscall.O_RDONLY, 0666)
 	defer ff.Close()
 	if err != nil {
-		runLog.MyLog(bizKey, runLog.ERROR, "Open statlog Failed !!!", 1)
-		return
+		return nil
 	}
 
 	fstat, _ := os.Stat(fileName)
@@ -104,8 +102,7 @@ Over:
 	tmpbuf := make([]byte, dataSize)
 	ff.Seek(-begPosInFile, os.SEEK_END)
 	nn, _ := ff.Read(tmpbuf)
-	recordBuff = string(tmpbuf[:nn])
-	return
+	return tmpbuf[:nn]
 }
 
 func timeStr2Int(timeStr string) int64 {

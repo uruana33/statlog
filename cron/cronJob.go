@@ -38,7 +38,7 @@ func StartCronJobs() {
 
 	addJob(&cronJob{
 		" 日报数据入库 ",
-		"0 0 2 * * *",
+		"0 0 3 * * *",
 		doReport.Report,
 	})
 
