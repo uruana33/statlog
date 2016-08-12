@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"os"
 	"statUpload/goLog"
+	"statUpload/isFile"
 	"statUpload/parseConfig"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -48,12 +51,40 @@ func writeRawLog(records *statInfo, kind string) {
 		rawStatFile = fmt.Sprintf("%s%s/%s_%s", runLogDir, BizKey, BizKey, parseConfig.StatConfig["rawStatLog"])
 	}
 
-	onWriteLog, err := os.OpenFile(rawStatFile, syscall.O_CREAT+syscall.O_WRONLY+syscall.O_APPEND, 0666)
+	if !isFile.IsFileExist(rawStatFile) {
+		_, err := os.Create(rawStatFile)
+		if err != nil {
+			msg := fmt.Sprintf("Create file faild:<%s>", rawStatFile)
+			goLog.SendLog(msg, "ERROR", BizKey)
+			panic(msg)
+		}
+	}
+
+	//文件回滚清空
+	resetSize := parseConfig.StatConfig["truncateSize"]
+	resetSizeInt64, err := strconv.ParseInt(strings.TrimSpace(resetSize), 10, 64)
+	if err != nil {
+		goLog.SendLog("Read truncate size error", "ERROR", BizKey)
+		resetSizeInt64 = 0
+	}
+	fstat, _ := os.Stat(rawStatFile)
+	fileSize := fstat.Size()
+	onWriteLog := new(os.File)
+	if fileSize <= resetSizeInt64 {
+		onWriteLog, err = os.OpenFile(rawStatFile, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_APPEND, 0666)
+	} else {
+		if resetSizeInt64 != 0 {
+			onWriteLog, err = os.OpenFile(rawStatFile, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_APPEND|syscall.O_TRUNC, 0666)
+		} else {
+			onWriteLog, err = os.OpenFile(rawStatFile, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_APPEND, 0666)
+		}
+	}
 	defer onWriteLog.Close()
 	if err != nil {
 		goLog.SendLog("Could not write rawstat data into file.", "ERROR", BizKey)
 		return
 	}
+
 	onWriteLog.Write([]byte(logStr))
 	onWriteLog.Write([]byte("\n"))
 }
