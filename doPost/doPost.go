@@ -35,7 +35,7 @@ func dealchan(statData DataType) {
 		goLog.SendLog(msg, "INFO", rawBiz)
 		return
 	}
-	go PostFalcon(data)
+	go PostFalcon(data, rawBiz)
 }
 
 func Send() {
@@ -117,17 +117,22 @@ func dataKind() {
 	done <- 1
 }
 
-func PostFalcon(data []byte) {
+func PostFalcon(data []byte, bizKey string) {
+	if len(data) == 0 {
+		return
+	}
 	url := "http://127.0.0.1:1988/v1/push"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		panic(err)
+		goLog.SendLog(err.Error(), "ERROR", bizKey)
+		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	myPost := &http.Client{}
 	resp, err := myPost.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
-		panic(err)
+		goLog.SendLog(err.Error(), "ERROR", bizKey)
+		return
 	}
 }

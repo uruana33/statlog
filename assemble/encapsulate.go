@@ -3,6 +3,7 @@ package assemble
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"statUpload/goLog"
 	"statUpload/parseConfig"
@@ -42,8 +43,8 @@ func getTypeFormat(data interface{}) (forMatStr string) {
 //命令字ALL
 func formatKeyALL(tPreMin int64, serviceName string, servicePort string, keyALLReq float64) *jsonStruct {
 	var eachjson jsonStruct
-	//eachjson.Endpoint, _ = os.Hostname()
-	eachjson.Endpoint = "game.mstore.test"
+	eachjson.Endpoint, _ = os.Hostname()
+	//eachjson.Endpoint = "game.mlacc.test"
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
@@ -61,8 +62,8 @@ func formatKeyALL(tPreMin int64, serviceName string, servicePort string, keyALLR
 func formatStatusCode(tPreMin int64, appid string, cmdword string, serviceName string, servicePort string, statCode int64, statValue interface{}) *jsonStruct {
 	var eachjson jsonStruct
 	eachjson.Metric = "StatusCode"
-	//eachjson.Endpoint, _ = os.Hostname()
-	eachjson.Endpoint = "game.mstore.test"
+	eachjson.Endpoint, _ = os.Hostname()
+	//eachjson.Endpoint = "game.mlacc.test"
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
@@ -88,8 +89,8 @@ func formatNormalCMD(tPreMin int64, appid string, cmdword string, serviceName st
 
 	var eachjson jsonStruct
 	eachjson.Metric = serviceMetric
-	//eachjson.Endpoint, _ = os.Hostname()
-	eachjson.Endpoint = "game.mstore.test"
+	eachjson.Endpoint, _ = os.Hostname()
+	//eachjson.Endpoint = "game.mlacc.test"
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
