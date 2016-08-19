@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"statUpload/isFile"
 	"statUpload/parseConfig"
 	"syscall"
 	"time"
@@ -66,7 +67,23 @@ func needLogging(logData *LogCard, bizKey string) {
 		(*logData).LogItemFileName,
 		(*logData).LogItemLineNo,
 		(*logData).LogItemMSG)
+
 	runLogDir := parseConfig.StatConfig["logBaseDir"]
+	//目录不存在
+	if !isFile.IsDirExist(runLogDir) {
+		err := os.Mkdir(runLogDir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+	runLogBizDir := fmt.Sprintf("%s%s", runLogDir, bizKey)
+	if !isFile.IsDirExist(runLogBizDir) {
+		err := os.Mkdir(runLogBizDir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	runMsgLog := fmt.Sprintf("%s%s/%s", runLogDir, bizKey, parseConfig.StatConfig["runMsgLog"])
 	logFile, err := os.OpenFile(runMsgLog, syscall.O_CREAT+syscall.O_WRONLY+syscall.O_APPEND, 0666)
 	defer logFile.Close()

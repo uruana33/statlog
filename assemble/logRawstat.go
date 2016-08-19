@@ -41,7 +41,21 @@ func writeRawLog(records *statInfo, kind string) {
 			logStr += aTempStr
 		}
 	}
+	//目录不存在
 	runLogDir := parseConfig.StatConfig["logBaseDir"]
+	if !isFile.IsDirExist(runLogDir) {
+		err := os.Mkdir(runLogDir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
+	runLogBizDir := fmt.Sprintf("%s%s", runLogDir, BizKey)
+	if !isFile.IsDirExist(runLogBizDir) {
+		err := os.Mkdir(runLogBizDir, 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
 
 	var rawStatFile string
 	switch kind {

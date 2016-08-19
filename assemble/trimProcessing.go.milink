@@ -13,9 +13,9 @@ type uploadRawData struct {
 	SuccRate      float64           `成功率`
 	AvgTimeDelay  float64           `平均延时`
 	MaxTimeDelay  float64           `最大延时`
-	GT10msRate    float64           `延时大于100ms比例`
-	GT100msRate   float64           `延时大于500ms比例`
-	LT500msRate   float64           `延时小于1000ms比例`
+	GT100msRate   float64           `延时大于100ms比例`
+	GT500msRate   float64           `延时大于500ms比例`
+	LT1000msRate  float64           `延时小于1000ms比例`
 	RetCodeDetail map[int64]float64 `返回码明细`
 }
 
@@ -91,9 +91,9 @@ func encapTypeNormal(records *statInfo) *uploadNormal {
 	for appidcmd, retmap := range *records {
 		var allsum float64 = 0.0
 		var errsum float64 = 0.0
-		var gt10ms float64 = 0.0
 		var gt100ms float64 = 0.0
 		var gt500ms float64 = 0.0
+		var gt1000ms float64 = 0.0
 		//返回码明细
 		tempElem := new(uploadRawData)
 		tempElem.RetCodeDetail = make(map[int64]float64)
@@ -105,9 +105,9 @@ func encapTypeNormal(records *statInfo) *uploadNormal {
 			allsum += contStruc.total
 			//延时分布统计
 			if 0 == retCode {
-				gt10ms += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
-				gt100ms += contStruc.distri2 + contStruc.distri3
-				gt500ms += contStruc.distri3
+				gt100ms += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
+				gt500ms += contStruc.distri2 + contStruc.distri3
+				gt1000ms += contStruc.distri3
 				//平均值
 				tempElem.AvgTimeDelay = contStruc.avg / contStruc.accNum
 				//最大值
@@ -122,9 +122,9 @@ func encapTypeNormal(records *statInfo) *uploadNormal {
 		tempElem.REQTotal = allsum / 60.0
 		tempElem.ErrorCount = errsum / 60.0
 		tempElem.SuccRate = (1 - errsum/allsum) * 100.0
-		tempElem.GT10msRate = (gt10ms / allsum) * 100.0
 		tempElem.GT100msRate = (gt100ms / allsum) * 100.0
-		tempElem.LT500msRate = (1 - gt500ms/allsum) * 100.0
+		tempElem.GT500msRate = (gt500ms / allsum) * 100.0
+		tempElem.LT1000msRate = (1 - gt1000ms/allsum) * 100.0
 		myUpload[appidcmd] = tempElem
 	}
 	return &myUpload

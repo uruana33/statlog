@@ -94,13 +94,19 @@ func dataKind() {
 		//}()
 
 		//	go func() {
+		var exist bool
 		for _, file := range statValueFile {
 			if !isFile.IsFileExist(file) {
 				msg := fmt.Sprintf("file not exist:<%s>", file)
 				goLog.SendLog(msg, "ERROR", bizKey)
+				exist = false
 				continue
 			}
+			exist = true
 			recordBufferSpecial += string(filter.ReadRecord(file, bizKey))
+		}
+		if !exist && (0 == len(recordBufferSpecial)) {
+			continue
 		}
 		if 0 == len(recordBufferSpecial) {
 			msg := fmt.Sprintf("Specail stat_value.log not useful data current...<biz:%s>", bizKey)

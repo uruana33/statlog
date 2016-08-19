@@ -68,7 +68,7 @@ func statInsert(db *sql.DB, res string) {
 		}
 		appid := bList[0]
 		cmd := bList[1]
-		indb.Exec("insert into test(datestr,hostname,appid,cmdword,reqtotal) values(?,?,?,?,?);", date, host, appid, cmd, total)
+		indb.Exec("insert into appid_cmd_info(datestr,hostname,appid,cmdword,reqtotal) values(?,?,?,?,?);", date, host, appid, cmd, total)
 	}
 	indb.Commit()
 }

@@ -100,7 +100,6 @@ func encapTypeNormal(records *statInfo) *uploadNormal {
 		//处理该命令字下的所有返回码
 		for retCode, contStruc := range retmap {
 			//返回码明细
-			//tempElem.RetCodeDetail[retCode] = float64((*newestCodeMap)[appidcmd][retCode].stacc) / 60.0
 			tempElem.RetCodeDetail[retCode] = contStruc.total / 60.0
 			//总访问量
 			allsum += contStruc.total

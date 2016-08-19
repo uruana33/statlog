@@ -1,9 +1,7 @@
 package zkconfig
 
 import (
-	"fmt"
 	"log"
-	"statUpload/goLog"
 	"statUpload/parseConfig"
 	"strconv"
 	"strings"
@@ -167,8 +165,6 @@ func getWhiteListMap() (myWhiteListMap map[string]map[string][]int64) {
 			}
 		}
 	}
-	msg := fmt.Sprintf("%+v", myWhiteListMap)
-	goLog.SendLog(msg, "info", "zhibo-access-8080")
 	return
 }
 
