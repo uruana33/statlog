@@ -8,34 +8,50 @@ import (
 
 //最后要上报给平台的数据格式
 type uploadRawData struct {
-	REQTotal      float64           `总访问量`
-	ErrorCount    float64           `返回码不为零的总量`
-	SuccRate      float64           `成功率`
-	AvgTimeDelay  float64           `平均延时`
-	MaxTimeDelay  float64           `最大延时`
-	GT100msRate   float64           `延时大于100ms比例`
-	GT500msRate   float64           `延时大于500ms比例`
-	LT1000msRate  float64           `延时小于1000ms比例`
-	RetCodeDetail map[int64]float64 `返回码明细`
+	//总访问量
+	REQTotal float64
+	//返回码不为零的总量
+	ErrorCount float64
+	//成功率
+	SuccRate float64
+	//平均延时
+	AvgTimeDelay float64
+	//最大延时
+	MaxTimeDelay float64
+	//延时大于100ms比例
+	GT100msRate float64
+	//延时大于500ms比例
+	GT500msRate float64
+	//延时小于1000ms比例
+	LT1000msRate float64
+	//返回码明细
+	RetCodeDetail map[int64]float64
 }
 
 type uploadRawDataKV struct {
-	KVTotal      float64 `该key访问量`
-	KVAvgByte    float64 `平均key大小`
-	KVMaxByte    float64 `最大key大小`
-	KVGT1KBRate  float64 `key大于1KB的比例`
-	KVGT5KBRate  float64 `key大于5KB的比例`
-	KVLT10KBRate float64 `key小于10KB的比例`
+	//该key访问量
+	KVTotal float64
+	//平均key大小
+	KVAvgByte float64
+	//最大key大小
+	KVMaxByte float64
+	//key大于1KB的比例
+	KVGT1KBRate float64
+	//key大于5KB的比例
+	KVGT5KBRate float64
+	//key小于10KB的比例
+	KVLT10KBRate float64
 }
 
-type uploadNormal map[string]*uploadRawData
+type uploadNormal map[string]uploadRawData
 type uploadSpecial map[string]*uploadRawDataKV
+
+var REG = regexp.MustCompile(`[\d]+`)
 
 func getCmdName(appidcmd string) (appid string, cmdword string) {
 	aList := strings.SplitN(appidcmd, "_", 2)
 	if 2 == len(aList) {
-		reg := regexp.MustCompile(`[\d]+`)
-		if reg.MatchString(aList[0]) {
+		if REG.MatchString(aList[0]) {
 			appid = aList[0]
 			cmdword = aList[1]
 		} else {
@@ -49,9 +65,9 @@ func getCmdName(appidcmd string) (appid string, cmdword string) {
 	return
 }
 
-func errNum(retCode int64, total float64, appidcmd string) float64 {
+func errNum(retCode int64, total float64, appidcmd string, biz string) float64 {
 
-	serviceName := zkconfig.ServiceConfMap[BizKey]["srvName"]
+	serviceName := zkconfig.ServiceConfMap[biz]["srvName"]
 	//从zk读取白名单配置
 	//该命令字是否配有白名单
 	if _, ok := zkconfig.WhiteListMap[serviceName]; ok {
@@ -82,25 +98,33 @@ func errNum(retCode int64, total float64, appidcmd string) float64 {
 	}
 }
 
-func encapTypeNormal(records *statInfo) *uploadNormal {
+type normalStatPiece struct {
+	appidcmd string
+	statCont uploadRawData
+}
 
-	//对传过来的map更新
-	logHisRetCodeAccess(records)
+type specialStatPiece struct {
+	appidcmd string
+	statCont uploadRawDataKV
+}
 
-	myUpload := make(uploadNormal)
+func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatPiece) {
+
+	//存放命令字信息
+	tempElem := new(normalStatPiece)
 	for appidcmd, retmap := range *records {
+
+		tempElem.appidcmd = appidcmd
 		var allsum float64 = 0.0
 		var errsum float64 = 0.0
 		var gt100ms float64 = 0.0
 		var gt500ms float64 = 0.0
 		var gt1000ms float64 = 0.0
-		//返回码明细
-		tempElem := new(uploadRawData)
-		tempElem.RetCodeDetail = make(map[int64]float64)
 		//处理该命令字下的所有返回码
+		tempElem.statCont.RetCodeDetail = make(map[int64]float64, 0)
 		for retCode, contStruc := range retmap {
 			//返回码明细
-			tempElem.RetCodeDetail[retCode] = contStruc.total / 60.0
+			tempElem.statCont.RetCodeDetail[retCode] = contStruc.total / 60.0
 			//总访问量
 			allsum += contStruc.total
 			//延时分布统计
@@ -109,30 +133,29 @@ func encapTypeNormal(records *statInfo) *uploadNormal {
 				gt500ms += contStruc.distri2 + contStruc.distri3
 				gt1000ms += contStruc.distri3
 				//平均值
-				tempElem.AvgTimeDelay = contStruc.avg / contStruc.accNum
+				tempElem.statCont.AvgTimeDelay = contStruc.avg / contStruc.accNum
 				//最大值
-				tempElem.MaxTimeDelay = contStruc.max
+				tempElem.statCont.MaxTimeDelay = contStruc.max
 			}
 			if 0 != retCode {
-				errsum += errNum(retCode, contStruc.total, appidcmd)
+				errsum += errNum(retCode, contStruc.total, appidcmd, biz)
 			}
 		}
-
 		//针对该命令字的封装:tempElem结构
-		tempElem.REQTotal = allsum / 60.0
-		tempElem.ErrorCount = errsum / 60.0
-		tempElem.SuccRate = (1 - errsum/allsum) * 100.0
-		tempElem.GT100msRate = (gt100ms / allsum) * 100.0
-		tempElem.GT500msRate = (gt500ms / allsum) * 100.0
-		tempElem.LT1000msRate = (1 - gt1000ms/allsum) * 100.0
-		myUpload[appidcmd] = tempElem
+		tempElem.statCont.REQTotal = allsum / 60.0
+		tempElem.statCont.ErrorCount = errsum / 60.0
+		tempElem.statCont.SuccRate = (1 - errsum/allsum) * 100.0
+		tempElem.statCont.GT100msRate = (gt100ms / allsum) * 100.0
+		tempElem.statCont.GT500msRate = (gt500ms / allsum) * 100.0
+		tempElem.statCont.LT1000msRate = (1 - gt1000ms/allsum) * 100.0
+		statBlock <- *tempElem
 	}
-	return &myUpload
 }
 
-func encapTypeSpecial(records *statInfo) *uploadSpecial {
+func encapTypeSpecial(records *statInfo, biz string, statBlock chan<- specialStatPiece) {
 
-	myUploadKV := make(uploadSpecial)
+	//存放命令字信息
+	tempElem := new(specialStatPiece)
 	for appidcmd, retmap := range *records {
 		if "ALL" == appidcmd {
 			continue
@@ -141,8 +164,6 @@ func encapTypeSpecial(records *statInfo) *uploadSpecial {
 		var ge1KB float64 = 0.0
 		var ge5KB float64 = 0.0
 		var ge10KB float64 = 0.0
-		//返回码明细
-		tempElem := new(uploadRawDataKV)
 		//处理该命令字下的所有返回码
 		for retCode, contStruc := range retmap {
 			//总访问量
@@ -153,17 +174,17 @@ func encapTypeSpecial(records *statInfo) *uploadSpecial {
 				ge5KB += contStruc.distri2 + contStruc.distri3
 				ge10KB += contStruc.distri3
 				//平均值
-				tempElem.KVAvgByte = contStruc.avg / contStruc.accNum
+				tempElem.statCont.KVAvgByte = contStruc.avg / contStruc.accNum
 				//最大值
-				tempElem.KVMaxByte = contStruc.max
+				tempElem.statCont.KVMaxByte = contStruc.max
 			}
 		}
 		//针对该命令字的封装:tempElem结构
-		tempElem.KVTotal = allsum / 60.0
-		tempElem.KVGT1KBRate = (ge1KB / allsum) * 100.0
-		tempElem.KVGT5KBRate = (ge5KB / allsum) * 100.0
-		tempElem.KVLT10KBRate = (1 - ge10KB/allsum) * 100.0
-		myUploadKV[appidcmd] = tempElem
+		tempElem.appidcmd = appidcmd
+		tempElem.statCont.KVTotal = allsum / 60.0
+		tempElem.statCont.KVGT1KBRate = (ge1KB / allsum) * 100.0
+		tempElem.statCont.KVGT5KBRate = (ge5KB / allsum) * 100.0
+		tempElem.statCont.KVLT10KBRate = (1 - ge10KB/allsum) * 100.0
+		statBlock <- *tempElem
 	}
-	return &myUploadKV
 }

@@ -10,13 +10,14 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 )
 
+/*
 var WhiteList = make([]byte, 0)
 var InitCont = make([]byte, 0)
 var ServiceCont = make([]byte, 0)
+*/
 
 var WhiteListMap map[string]map[string][]int64
 var ServiceConfMap map[string]map[string]string
-var InitConfMap map[string]string
 
 func connect() *zk.Conn {
 
@@ -27,8 +28,7 @@ func connect() *zk.Conn {
 	var servers []string = strings.Split(zkhosts, ",")
 	conn, _, err := zk.Connect(servers, time.Second*3)
 	if err != nil {
-		log.Println("Can not Connect to ZK Server !!!")
-		panic(err)
+		panic("Can not Connect to ZK Server !!!")
 	}
 	return conn
 }
@@ -71,31 +71,31 @@ func GetZKConfig() {
 	for {
 		select {
 		case snap1 := <-snapshots1:
-			WhiteList = snap1
-			WhiteListMap = getWhiteListMap()
+			//WhiteList = snap1
+			WhiteListMap = getWhiteListMap(snap1)
 		case err1 := <-errs1:
 			panic(err1)
 
 		case snap2 := <-snapshots2:
-			ServiceCont = snap2
-			ServiceConfMap = getServiceConf()
+			//ServiceCont = snap2
+			ServiceConfMap = getServiceConf(snap2)
 		case err2 := <-errs2:
 			panic(err2)
 		}
 	}
 }
 
-func getWhiteListMap() (myWhiteListMap map[string]map[string][]int64) {
+func getWhiteListMap(thisWhiteList []byte) (myWhiteListMap map[string]map[string][]int64) {
 
 	myWhiteListMap = make(map[string]map[string][]int64, 0)
 	var wStr string
 
-	if 0 == len(WhiteList) {
-		log.Println("WhiteList configuration is NULL on ZK !!!")
+	if 0 == len(thisWhiteList) {
+		log.Println("whiteList configuration is NULL on ZK !!!")
 		return
 	}
 
-	zkLine := strings.Split(string(WhiteList), "\r\n")
+	zkLine := strings.Split(string(thisWhiteList), "\r\n")
 	for _, zkLineCont := range zkLine {
 
 		if strings.HasPrefix(zkLineCont, "#") {
@@ -149,7 +149,7 @@ func getWhiteListMap() (myWhiteListMap map[string]map[string][]int64) {
 			if strings.Contains(aa, "@") {
 				bList := strings.SplitN(strings.TrimSpace(aa), "@", 2)
 				if 2 != len(bList) {
-					log.Println("WhiteList code configuration's format is Error !!!")
+					log.Println("whiteList code configuration's format is Error !!!")
 					continue
 				}
 				start, _ := strconv.ParseInt(bList[0], 10, 64)
@@ -168,16 +168,16 @@ func getWhiteListMap() (myWhiteListMap map[string]map[string][]int64) {
 	return
 }
 
-func getServiceConf() (myServiceConf map[string]map[string]string) {
+func getServiceConf(thisServiceCont []byte) (myServiceConf map[string]map[string]string) {
 
-	if 0 == len(ServiceCont) {
+	if 0 == len(thisServiceCont) {
 		log.Println("Service configuration is NULL on ZK !!!")
 		return
 	}
 
 	var bizStr string
 	myServiceConf = make(map[string]map[string]string)
-	srvContLine := strings.Split(string(ServiceCont), "\r\n")
+	srvContLine := strings.Split(string(thisServiceCont), "\r\n")
 	for _, srvCont := range srvContLine {
 
 		if strings.HasPrefix(srvCont, "#") {
@@ -187,7 +187,6 @@ func getServiceConf() (myServiceConf map[string]map[string]string) {
 		if 2 > len(srvCont) {
 			continue
 		} else {
-			//if strings.Contains(srvCont, "[") && strings.Contains(srvCont, "]") {
 			if strings.HasPrefix(srvCont, "[") && strings.HasSuffix(srvCont, "]") {
 				bizStr = strings.TrimSpace(strings.Trim(strings.Trim(srvCont, "["), "]"))
 				if 0 == len(bizStr) {

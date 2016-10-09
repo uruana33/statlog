@@ -1,39 +1,38 @@
 package assemble
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
-	"statUpload/goLog"
 	"statUpload/parseConfig"
 	"statUpload/zkconfig"
+	"strconv"
+	"strings"
 	"time"
 )
 
 //falcon平台json格式
-type jsonStruct struct {
+type FalconStruct struct {
 	Metric      string
 	TAGS        string
 	Endpoint    string
 	Timestamp   int64
 	Step        int64
-	Value       interface{}
+	Value       string
 	CounterType string
 }
 
-type jsonSlice struct {
-	postDataList []jsonStruct
-}
+var ThisHostname string
+var ThisCluster string
 
 func getTypeFormat(data interface{}) (forMatStr string) {
 	switch tt := data.(type) {
-	case string:
-		forMatStr = fmt.Sprintf("%s", tt)
 	case int64:
-		forMatStr = fmt.Sprintf("%d", tt)
+		forMatStr = strconv.FormatInt(tt, 10)
 	case float64:
-		forMatStr = fmt.Sprintf("%.3f", tt)
+		forMatStr = strconv.FormatFloat(tt, 'f', 3, 64)
+	case string:
+		forMatStr = tt
 	default:
 		forMatStr = fmt.Sprintf("%v", tt)
 	}
@@ -41,145 +40,142 @@ func getTypeFormat(data interface{}) (forMatStr string) {
 }
 
 //命令字ALL
-func formatKeyALL(tPreMin int64, serviceName string, servicePort string, keyALLReq float64) *jsonStruct {
-	var eachjson jsonStruct
-	eachjson.Endpoint, _ = os.Hostname()
-	//eachjson.Endpoint = "game.mlacc.test"
+func formatKeyALL(tPreMin int64, serviceName string, servicePort string, keyALLReq float64) *FalconStruct {
+	eachjson := new(FalconStruct)
+	eachjson.Endpoint = ThisHostname
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
 	eachjson.Metric = "QPS"
-	if 0 == len(servicePort) {
-		eachjson.TAGS = fmt.Sprintf("service=%s,cluster=%s", serviceName, parseConfig.StatConfig["cluster"])
-	} else {
-		eachjson.TAGS = fmt.Sprintf("service=%s,port=%s,cluster=%s", serviceName, servicePort, parseConfig.StatConfig["cluster"])
-	}
 	eachjson.Value = getTypeFormat(keyALLReq)
-	return &eachjson
+	if 0 == len(servicePort) {
+		strs := []string{"service=", serviceName, ",cluster=", ThisCluster}
+		eachjson.TAGS = strings.Join(strs, "")
+	} else {
+		strs := []string{"service=", serviceName, ",port=", servicePort, ",cluster=", ThisCluster}
+		eachjson.TAGS = strings.Join(strs, "")
+	}
+	return eachjson
 }
 
 //状态码
-func formatStatusCode(tPreMin int64, appid string, cmdword string, serviceName string, servicePort string, statCode int64, statValue interface{}) *jsonStruct {
-	var eachjson jsonStruct
+func formatStatusCode(tPreMin int64, appid string, cmdword string, serviceName string, servicePort string, statCode int64, statValue interface{}) *FalconStruct {
+	eachjson := new(FalconStruct)
 	eachjson.Metric = "StatusCode"
-	eachjson.Endpoint, _ = os.Hostname()
-	//eachjson.Endpoint = "game.mlacc.test"
+	eachjson.Endpoint = ThisHostname
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
+	eachjson.Value = getTypeFormat(statValue)
 	if "null" == appid {
 		if 0 == len(servicePort) {
-			eachjson.TAGS = fmt.Sprintf("cmdword=%s,retcode=%d,service=%s,cluster=%s", cmdword, statCode, serviceName, parseConfig.StatConfig["cluster"])
+			strs := []string{"cmdword=", cmdword, ",retcode=", strconv.FormatInt(statCode, 10), ",service=", serviceName, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		} else {
-			eachjson.TAGS = fmt.Sprintf("cmdword=%s,retcode=%d,service=%s,port=%s,cluster=%s", cmdword, statCode, serviceName, servicePort, parseConfig.StatConfig["cluster"])
+			strs := []string{"cmdword=", cmdword, ",retcode=", strconv.FormatInt(statCode, 10), ",service=", serviceName, ",port=", servicePort, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		}
 	} else {
 		if 0 == len(servicePort) {
-			eachjson.TAGS = fmt.Sprintf("appid=%s,cmdword=%s,retcode=%d,service=%s,cluster=%s", appid, cmdword, statCode, serviceName, parseConfig.StatConfig["cluster"])
+			strs := []string{"appid=", appid, ",cmdword=", cmdword, ",retcode=", strconv.FormatInt(statCode, 10), ",service=", serviceName, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		} else {
-			eachjson.TAGS = fmt.Sprintf("appid=%s,cmdword=%s,retcode=%d,service=%s,port=%s,cluster=%s", appid, cmdword, statCode, serviceName, servicePort, parseConfig.StatConfig["cluster"])
+			strs := []string{"appid=", appid, ",cmdword=", cmdword, ",retcode=", strconv.FormatInt(statCode, 10), ",service=", serviceName, ",port=", servicePort, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		}
 	}
-	eachjson.Value = getTypeFormat(statValue)
-	return &eachjson
+	return eachjson
 }
 
 //正常命令字
-func formatNormalCMD(tPreMin int64, appid string, cmdword string, serviceName string, servicePort string, serviceMetric string, itemName string, itemValue interface{}) *jsonStruct {
+func formatNormalCMD(tPreMin int64, appid string, cmdword string, serviceName string, servicePort string, serviceMetric string, itemName string, itemValue interface{}) *FalconStruct {
 
-	var eachjson jsonStruct
+	eachjson := new(FalconStruct)
 	eachjson.Metric = serviceMetric
-	eachjson.Endpoint, _ = os.Hostname()
-	//eachjson.Endpoint = "game.mlacc.test"
+	eachjson.Endpoint = ThisHostname
 	eachjson.Timestamp = tPreMin
 	eachjson.Step = 60
 	eachjson.CounterType = "GAUGE"
 	eachjson.Value = getTypeFormat(itemValue)
 	if "null" == appid {
 		if 0 == len(servicePort) {
-			eachjson.TAGS = fmt.Sprintf("cmdword=%s,item=%s,service=%s,cluster=%s", cmdword, itemName, serviceName, parseConfig.StatConfig["cluster"])
+			strs := []string{"cmdword=", cmdword, ",item=", itemName, ",service=", serviceName, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		} else {
-			eachjson.TAGS = fmt.Sprintf("cmdword=%s,item=%s,service=%s,port=%s,cluster=%s", cmdword, itemName, serviceName, servicePort, parseConfig.StatConfig["cluster"])
+			strs := []string{"cmdword=", cmdword, ",item=", itemName, ",service=", serviceName, ",port=", servicePort, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		}
 	} else {
 		if 0 == len(servicePort) {
-			eachjson.TAGS = fmt.Sprintf("appid=%s,cmdword=%s,item=%s,service=%s,cluster=%s", appid, cmdword, itemName, serviceName, parseConfig.StatConfig["cluster"])
+			strs := []string{"appid=", appid, ",cmdword=", cmdword, ",item=", itemName, ",service=", serviceName, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		} else {
-			eachjson.TAGS = fmt.Sprintf("appid=%s,cmdword=%s,item=%s,service=%s,port=%s,cluster=%s", appid, cmdword, itemName, serviceName, servicePort, parseConfig.StatConfig["cluster"])
+			strs := []string{"appid=", appid, ",cmdword=", cmdword, ",item=", itemName, ",service=", serviceName, ",port=", servicePort, ",cluster=", ThisCluster}
+			eachjson.TAGS = strings.Join(strs, "")
 		}
 	}
-	return &eachjson
+	return eachjson
 }
 
 //将数据封装成json格式
-func falconFormat(data interface{}) (jsonData []byte) {
+func falconFormat(uploadChan interface{}, biz string, jsonData chan<- FalconStruct, formatDone chan<- struct{}) {
 
-	serviceName := zkconfig.ServiceConfMap[BizKey]["srvName"]
-	serviceMetric := zkconfig.ServiceConfMap[BizKey]["srvMetric"]
-	servicePort := zkconfig.ServiceConfMap[BizKey]["srvPort"]
+	serviceName := zkconfig.ServiceConfMap[biz]["srvName"]
+	serviceMetric := zkconfig.ServiceConfMap[biz]["srvMetric"]
+	servicePort := zkconfig.ServiceConfMap[biz]["srvPort"]
+	ThisHostname, _ = os.Hostname()
+	ThisCluster = parseConfig.StatConfig["cluster"]
 	tPreMin := time.Now().Unix() - 60
-	var pDL jsonSlice
-	jsonData = make([]byte, 0)
-	switch myUpload := data.(type) {
-	case *uploadNormal:
-		for myCmd, myData := range *myUpload {
-			if "ALL" == myCmd {
-				eachjson := formatKeyALL(tPreMin, serviceName, servicePort, (*myData).REQTotal)
-				pDL.postDataList = append(pDL.postDataList, *eachjson)
+
+	switch myChan := uploadChan.(type) {
+	case chan normalStatPiece:
+		for myUpload := range myChan {
+			if "ALL" == myUpload.appidcmd {
+				eachjson := formatKeyALL(tPreMin, serviceName, servicePort, myUpload.statCont.REQTotal)
+				jsonData <- *eachjson
 				continue
 			}
+
 			//普通命令字
-			appid, cmdword := getCmdName(myCmd)
-			refDataType := reflect.TypeOf(*myData)
-			refDataValue := reflect.ValueOf(*myData)
+			appid, cmdword := getCmdName(myUpload.appidcmd)
+			refDataType := reflect.TypeOf(myUpload.statCont)
+			refDataValue := reflect.ValueOf(myUpload.statCont)
+			//遍历结构体
 			for i := 0; i < refDataType.NumField(); i++ {
 				//对返回码明细进行特殊处理,Metric不一样
 				if "RetCodeDetail" == refDataType.Field(i).Name {
-					for statCode, statValue := range (*myData).RetCodeDetail {
+					for statCode, statValue := range myUpload.statCont.RetCodeDetail {
 						eachjson := formatStatusCode(tPreMin, appid, cmdword, serviceName, servicePort, statCode, statValue)
-						pDL.postDataList = append(pDL.postDataList, *eachjson)
+						jsonData <- *eachjson
 					}
 					continue
 				}
 				itemName := refDataType.Field(i).Name
 				itemValue := refDataValue.Field(i)
 				eachjson := formatNormalCMD(tPreMin, appid, cmdword, serviceName, servicePort, serviceMetric, itemName, itemValue)
-				pDL.postDataList = append(pDL.postDataList, *eachjson)
+				jsonData <- *eachjson
 			}
 		}
-		data, err := json.Marshal(pDL.postDataList)
-		if err != nil {
-			msg := fmt.Sprintf("json change faild:%s\n", err)
-			goLog.SendLog(msg, "ERROR", BizKey)
-			return nil
-		}
-		jsonData = data
-
-	case *uploadSpecial:
-		for myCmd, myData := range *myUpload {
-			if "ALL" == myCmd {
-				eachjson := formatKeyALL(tPreMin, serviceName, servicePort, (*myData).KVTotal)
-				pDL.postDataList = append(pDL.postDataList, *eachjson)
+	case chan specialStatPiece:
+		for myUploadKV := range myChan {
+			if "ALL" == myUploadKV.appidcmd {
 				continue
 			}
 			//普通命令字
-			appid, cmdword := getCmdName(myCmd)
-			refDataType := reflect.TypeOf(*myData)
-			refDataValue := reflect.ValueOf(*myData)
+			appid, cmdword := getCmdName(myUploadKV.appidcmd)
+			refDataType := reflect.TypeOf(myUploadKV.statCont)
+			refDataValue := reflect.ValueOf(myUploadKV.statCont)
+			//遍历结构体
 			for i := 0; i < refDataType.NumField(); i++ {
 				itemName := refDataType.Field(i).Name
 				itemValue := refDataValue.Field(i)
 				eachjson := formatNormalCMD(tPreMin, appid, cmdword, serviceName, servicePort, serviceMetric, itemName, itemValue)
-				pDL.postDataList = append(pDL.postDataList, *eachjson)
+				jsonData <- *eachjson
 			}
 		}
-		data, err := json.Marshal(pDL.postDataList)
-		if err != nil {
-			msg := fmt.Sprintf("json change faild:%s\n", err)
-			goLog.SendLog(msg, "ERROR", BizKey)
-			return nil
-		}
-		jsonData = data
+	default:
 	}
-	return jsonData
+
+	formatDone <- struct{}{}
+	return
 }

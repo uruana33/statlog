@@ -2,6 +2,7 @@ package doPost
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"statUpload/assemble"
@@ -17,51 +18,82 @@ type DataType struct {
 	data []byte
 }
 
-var dataTypeChan = make(chan DataType)
-var done = make(chan int)
-
 func dealchan(statData DataType) {
-	rawBiz := statData.biz
-	rawType := statData.kind
-	rawData := statData.data
-	if 0 == len(rawData) {
-		msg := fmt.Sprintf("not any data recive from chan...<biz:%s><kind:%s>", rawBiz, rawType)
-		goLog.SendLog(msg, "INFO", rawBiz)
+
+	if 0 == len(statData.data) {
+		msg := fmt.Sprintf("nothing recive from chan...<biz:%s><kind:%s>", statData.biz, statData.kind)
+		goLog.SendLog(msg, "INFO", statData.biz)
 		return
 	}
-	data := assemble.PackageData(rawData, rawType, rawBiz)
-	if 0 == len(data) {
-		msg := fmt.Sprintf("not any data for post to falcon...<biz:%s><kind:%s>", rawBiz, rawType)
-		goLog.SendLog(msg, "INFO", rawBiz)
-		return
-	}
-	go PostFalcon(data, rawBiz)
+
+	falconData := make(chan assemble.FalconStruct)
+	formatDone := make(chan struct{})
+	go func() {
+		defer close(falconData)
+		defer close(formatDone)
+		go assemble.PackageData(statData.data, statData.kind, statData.biz, falconData, formatDone)
+		<-formatDone
+	}()
+
+	PostFalcon(falconData, statData.biz)
+
 }
 
 func Send() {
+
+	/*
+		go func() {
+			http.ListenAndServe("10.112.15.48:80", nil)
+		}()
+	*/
+
+	done := make(chan struct{})
+	dataTypeChan := make(chan DataType)
 	go func() {
-	DONE:
+		defer close(done)
+		defer close(dataTypeChan)
 		for {
 			select {
 			case statData := <-dataTypeChan:
-				dealchan(statData)
+				go dealchan(statData)
 			case <-done:
-				break DONE
+				return
+			default:
 			}
 		}
 	}()
 
-	dataKind()
+	dataKind(done, dataTypeChan)
 }
 
-func dataKind() {
+//对不同的数据分类
+func dataKind(done chan<- struct{}, dataTypeChan chan<- DataType) {
 
 	for bizKey, bizMap := range zkconfig.ServiceConfMap {
+
+		var statLog, statLogBak, statValueLog, statValueLogBak string
 		statLogDir := bizMap["logDir"]
-		statLog := fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statLogFile"])
-		statLogBak := fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statLogFileBak"])
-		statValueLog := fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statValueLogFile"])
-		statValueLogBak := fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statValueLogFileBak"])
+		if 0 != len(bizMap["statLogFile"]) {
+			statLog = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statLogFile"])
+		} else {
+			statLog = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, "no-stat-log")
+		}
+		if 0 != len(bizMap["statLogFileBak"]) {
+			statLogBak = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statLogFileBak"])
+		} else {
+			statLogBak = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, "no-stat1-log")
+		}
+
+		if 0 != len(bizMap["statValueLogFile"]) {
+			statValueLog = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statValueLogFile"])
+		} else {
+			statValueLog = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, "no-statvalue-log")
+		}
+		if 0 != len(bizMap["statValueLogFileBak"]) {
+			statValueLogBak = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, bizMap["statValueLogFileBak"])
+		} else {
+			statValueLogBak = fmt.Sprintf("%s%s/%s", statLogDir, bizKey, "no-statvalue1-log")
+		}
 
 		statFile := make([]string, 0)
 		statValueFile := make([]string, 0)
@@ -70,16 +102,15 @@ func dataKind() {
 		statValueFile = append(statValueFile, statValueLog)
 		statValueFile = append(statValueFile, statValueLogBak)
 
-		var recordBufferNormal string
-		var recordBufferSpecial string
-		//go func() {
+		recordBufferNormal := make([]byte, 0)
 		for _, file := range statFile {
 			if !isFile.IsFileExist(file) {
 				msg := fmt.Sprintf("file not exist:<%s>", file)
 				goLog.SendLog(msg, "ERROR", bizKey)
 				continue
 			}
-			recordBufferNormal += string(filter.ReadRecord(file, bizKey))
+			tempbuff := filter.ReadRecord(file, bizKey)
+			recordBufferNormal = append(recordBufferNormal, tempbuff...)
 		}
 		if 0 == len(recordBufferNormal) {
 			msg := fmt.Sprintf("Normal stat.log not useful data current...<biz:%s>", bizKey)
@@ -89,21 +120,24 @@ func dataKind() {
 		aa := new(DataType)
 		aa.biz = bizKey
 		aa.kind = "TypeNormal"
-		aa.data = []byte(recordBufferNormal)
+		aa.data = recordBufferNormal
 		dataTypeChan <- *aa
-		//}()
 
-		//	go func() {
+		if 0 == len(statValueLog) || 0 == len(statValueFile) {
+			continue
+		}
 		var exist bool
-		for _, file := range statValueFile {
-			if !isFile.IsFileExist(file) {
-				msg := fmt.Sprintf("file not exist:<%s>", file)
+		recordBufferSpecial := make([]byte, 0)
+		for _, valuefile := range statValueFile {
+			if !isFile.IsFileExist(valuefile) {
+				msg := fmt.Sprintf("file not exist:<%s>", valuefile)
 				goLog.SendLog(msg, "ERROR", bizKey)
 				exist = false
 				continue
 			}
 			exist = true
-			recordBufferSpecial += string(filter.ReadRecord(file, bizKey))
+			tempvaluebuff := filter.ReadRecord(valuefile, bizKey)
+			recordBufferSpecial = append(recordBufferSpecial, tempvaluebuff...)
 		}
 		if !exist && (0 == len(recordBufferSpecial)) {
 			continue
@@ -116,29 +150,37 @@ func dataKind() {
 		bb := new(DataType)
 		bb.biz = bizKey
 		bb.kind = "TypeSpecial"
-		bb.data = []byte(recordBufferSpecial)
+		bb.data = recordBufferSpecial
 		dataTypeChan <- *bb
-		//	}()
 	}
-	done <- 1
+	done <- struct{}{}
 }
 
-func PostFalcon(data []byte, bizKey string) {
-	if len(data) == 0 {
-		return
-	}
+func PostFalcon(falconData <-chan assemble.FalconStruct, bizKey string) {
+
 	url := "http://127.0.0.1:1988/v1/push"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	postList := make([]assemble.FalconStruct, 0)
+	for postData := range falconData {
+		postList = append(postList, postData)
+		if len(postList) == 20 {
+			data, _ := json.Marshal(postList)
+			res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
+			if err != nil {
+				goLog.SendLog(err.Error(), "ERROR", bizKey)
+			}
+			postList = postList[:0]
+			res.Body.Close()
+		}
+
+	}
+	//post剩下的
+	data, _ := json.Marshal(postList[:len(postList)])
+	res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
 	if err != nil {
 		goLog.SendLog(err.Error(), "ERROR", bizKey)
-		return
 	}
-	req.Header.Set("Content-Type", "application/json")
-	myPost := &http.Client{}
-	resp, err := myPost.Do(req)
-	defer resp.Body.Close()
-	if err != nil {
-		goLog.SendLog(err.Error(), "ERROR", bizKey)
-		return
-	}
+	res.Body.Close()
+	postList = postList[:0]
+
+	return
 }

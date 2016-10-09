@@ -2,6 +2,7 @@ package assemble
 
 import (
 	"fmt"
+	"regexp"
 	"statUpload/goLog"
 	"strconv"
 	"strings"
@@ -23,59 +24,70 @@ type retCont struct {
 //retCont:其他信息(在retCont中定义)
 type statInfo map[string]map[int64]*retCont
 
+var CMDREG = regexp.MustCompile(`\d{4,}$`)
+
 //对statlog日志进行粗处理,将结果都存放在变量eachRecord中
-func statFmtInit(eachRecord *statInfo, eachLine []string) {
+func statFmtInit(eachRecord *statInfo, eachLine []string, biz string) {
 	var retTemp retCont
 	var err error
+
+	//过滤不正确的命令字
+	cmdWord := strings.TrimSpace(eachLine[0])
+	aList := strings.SplitN(cmdWord, "_", 2)
+	if 2 == len(aList) {
+		if CMDREG.MatchString(aList[1]) {
+			return
+		}
+	}
+
 	//某一返回码对应的访问量
 	retTemp.total, err = strconv.ParseFloat(strings.TrimSpace(eachLine[2]), 64)
 	if err != nil {
 		retTemp.total = 0.0
 		msg := fmt.Sprintf("convert total:<%s><%s>", eachLine[2], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	//某一返回码对应的平均延时
 	retTemp.avg, err = strconv.ParseFloat(strings.TrimSpace(eachLine[4]), 64)
 	if err != nil {
 		retTemp.avg = 0.0
 		msg := fmt.Sprintf("convert avg:<%s><%s>", eachLine[4], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	//某一返回码对应的最大延时
 	retTemp.max, err = strconv.ParseFloat(strings.TrimSpace(eachLine[5]), 64)
 	if err != nil {
 		retTemp.max = 0.0
 		msg := fmt.Sprintf("convert max:<%s><%s>", eachLine[5], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	//某一返回码对应的最小延时
 	retTemp.min, err = strconv.ParseFloat(strings.TrimSpace(eachLine[6]), 64)
 	if err != nil {
 		retTemp.min = 0.0
 		msg := fmt.Sprintf("convert min:<%s><%s>", eachLine[6], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	//某一返回码对应的延时分布
 	retTemp.distri1, err = strconv.ParseFloat(strings.TrimSpace(eachLine[8]), 64)
 	if err != nil {
 		retTemp.distri1 = 0.0
 		msg := fmt.Sprintf("convert distri1:<%s><%s>", eachLine[8], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	retTemp.distri2, err = strconv.ParseFloat(strings.TrimSpace(eachLine[9]), 64)
 	if err != nil {
 		retTemp.distri2 = 0.0
 		msg := fmt.Sprintf("convert distri2:<%s><%s>", eachLine[9], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 	retTemp.distri3, err = strconv.ParseFloat(strings.TrimSpace(eachLine[10]), 64)
 	if err != nil {
 		retTemp.distri3 = 0.0
 		msg := fmt.Sprintf("convert distri3:<%s><%s>", eachLine[10], err)
-		goLog.SendLog(msg, "ERROR", BizKey)
+		goLog.SendLog(msg, "ERROR", biz)
 	}
 
-	cmdWord := strings.TrimSpace(eachLine[0])
 	//命令字不存在
 	if _, ok := (*eachRecord)[cmdWord]; !ok {
 		(*eachRecord)[cmdWord] = make(map[int64]*retCont)
@@ -103,7 +115,7 @@ func statFmtInit(eachRecord *statInfo, eachLine []string) {
 	}
 }
 
-func bulking(buffCont []byte) *statInfo {
+func bulking(biz string, buffCont []byte) *statInfo {
 	if 0 == len(buffCont) {
 		return nil
 	}
@@ -114,8 +126,9 @@ func bulking(buffCont []byte) *statInfo {
 		}
 		recordList := strings.Split((strings.TrimSpace(line)), "|")
 		//逐行处理
-		statFmtInit(&eachRecord, recordList)
+		statFmtInit(&eachRecord, recordList, biz)
 	}
+	buffCont = buffCont[:0]
 	return &eachRecord
 }
 

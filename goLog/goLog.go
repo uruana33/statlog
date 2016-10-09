@@ -37,23 +37,25 @@ func SendLog(msg string, logLevel string, bizkey string) {
 		aa.LogItemMSG = msg
 
 		mychan := make(chan *LogCard)
-		done := make(chan int)
+		done := make(chan struct{})
+		defer close(done)
+		defer close(mychan)
 
 		go SendLogFromClient(mychan, done, bizkey)
 
 		mychan <- aa
-		done <- 1
+		done <- struct{}{}
 	}
 }
 
-func SendLogFromClient(logMSG chan *LogCard, done chan int, bizKey string) {
-DONE:
+func SendLogFromClient(logMSG <-chan *LogCard, done <-chan struct{}, bizKey string) {
 	for {
 		select {
 		case aa := <-logMSG:
 			needLogging(aa, bizKey)
 		case <-done:
-			break DONE
+			return
+		default:
 		}
 	}
 }
