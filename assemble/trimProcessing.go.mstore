@@ -23,6 +23,8 @@ type uploadRawData struct {
 	//延时大于100ms比例
 	GT100msRate float64
 	//延时大于500ms比例
+	GT500msRate float64
+	//延时小于500ms比例
 	LT500msRate float64
 	//返回码明细
 	RetCodeDetail map[int64]float64
@@ -39,6 +41,8 @@ type uploadRawDataKV struct {
 	KVGT1KBRate float64
 	//key大于5KB的比例
 	KVGT5KBRate float64
+	//key大于10KB的比例
+	KVGT10KBRate float64
 	//key小于10KB的比例
 	KVLT10KBRate float64
 }
@@ -138,7 +142,7 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 				tempElem.statCont.MaxTimeDelay = contStruc.max
 			}
 			if 0 != retCode {
-				errsum += errNum(retCode, contStruc.total, appidcmd)
+				errsum += errNum(retCode, contStruc.total, appidcmd, biz)
 			}
 		}
 		//针对该命令字的封装:tempElem结构
@@ -147,6 +151,7 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 		tempElem.statCont.SuccRate = (1 - errsum/allsum) * 100.0
 		tempElem.statCont.GT10msRate = (gt10ms / allsum) * 100.0
 		tempElem.statCont.GT100msRate = (gt100ms / allsum) * 100.0
+		tempElem.statCont.GT500msRate = (gt500ms / allsum) * 100.0
 		tempElem.statCont.LT500msRate = (1 - gt500ms/allsum) * 100.0
 		statBlock <- *tempElem
 	}
@@ -184,6 +189,7 @@ func encapTypeSpecial(records *statInfo, biz string, statBlock chan<- specialSta
 		tempElem.statCont.KVTotal = allsum / 60.0
 		tempElem.statCont.KVGT1KBRate = (ge1KB / allsum) * 100.0
 		tempElem.statCont.KVGT5KBRate = (ge5KB / allsum) * 100.0
+		tempElem.statCont.KVGT10KBRate = (ge10KB / allsum) * 100.0
 		tempElem.statCont.KVLT10KBRate = (1 - ge10KB/allsum) * 100.0
 		statBlock <- *tempElem
 	}

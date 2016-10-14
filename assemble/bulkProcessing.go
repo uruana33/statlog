@@ -137,6 +137,8 @@ func ignLine(line string) bool {
 	switch {
 	case 0 == len(line):
 		return true
+	case 0 == len(strings.TrimSpace(line)):
+		return true
 	case "\n" == line:
 		return true
 	case "\r\n" == line:

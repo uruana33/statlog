@@ -62,6 +62,9 @@ func statusLoadToMap(statusFile string, biz string) *statusCodeInfo {
 		line, err := bufReadLine.ReadString('\n')
 		if len(line) > 0 {
 			cmdword, code := encapStatus(strings.Trim(line, "\n"))
+			if 0 == len(cmdword) {
+				continue
+			}
 			//新增命令字
 			if _, ok := codeMap[cmdword]; !ok {
 				codeMap[cmdword] = make([]int64, 0)
@@ -79,7 +82,6 @@ func statusLoadToMap(statusFile string, biz string) *statusCodeInfo {
 	return &codeMap
 }
 
-//func encapStatus(line string) (aFlag *stFlag, cmdword string, stcode int64) {
 func encapStatus(line string) (cmdword string, stcode int64) {
 	//错误格式,忽略
 	if 2 != strings.Count(line, "@") {
@@ -130,7 +132,6 @@ func logHisRetCodeAccess(eachRecord *statInfo, biz string) {
 
 	//eachRecord中存放最新状态,myCodeMap从文件中加载历史所有命令字状态
 	//给eachRecord填充历史中遗漏的命令字,这些命令字统计量是清零的
-
 	for cmdWord, retcodeList := range *myCodeMap {
 		for _, retcode := range retcodeList {
 			//新增历史命令字
