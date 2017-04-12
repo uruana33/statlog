@@ -21,10 +21,7 @@ var ServiceConfMap map[string]map[string]string
 
 func connect() *zk.Conn {
 
-	//测试环境ZK地址
-	//var zkhosts string = "zk1.staging.srv:2181,zk2.staging.srv:2181,zk3.staging.srv:2181,zk4.staging.srv:2181"
-	//线上环境ZK地址
-	var zkhosts string = "c3-hadoop-srv-ct01.bj:11000,c3-hadoop-srv-ct02.bj:11000,c3-hadoop-srv-ct03.bj:11000,c3-hadoop-srv-ct04.bj:11000,c3-hadoop-srv-ct05.bj:11000"
+	var zkhosts string = "ip(host):11000"
 	var servers []string = strings.Split(zkhosts, ",")
 	conn, _, err := zk.Connect(servers, time.Second*3)
 	if err != nil {
