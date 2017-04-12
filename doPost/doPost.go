@@ -158,7 +158,7 @@ func dataKind(done chan<- struct{}, dataTypeChan chan<- DataType) {
 
 func PostFalcon(falconData <-chan assemble.FalconStruct, bizKey string) {
 
-	url := "http://127.0.0.1:1988/v1/push"
+	url := "http://ip:port/v1/push"
 	postList := make([]assemble.FalconStruct, 0)
 	for postData := range falconData {
 		postList = append(postList, postData)
