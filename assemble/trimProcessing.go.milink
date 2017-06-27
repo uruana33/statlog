@@ -22,6 +22,8 @@ type uploadRawData struct {
 	GT100msRate float64
 	//延时大于500ms比例
 	GT500msRate float64
+	//延时大于1000ms比例
+	GT1000msRate float64
 	//延时小于1000ms比例
 	LT1000msRate float64
 	//返回码明细
@@ -39,12 +41,11 @@ type uploadRawDataKV struct {
 	KVGT1KBRate float64
 	//key大于5KB的比例
 	KVGT5KBRate float64
+	//key大于10KB的比例
+	KVGT10KBRate float64
 	//key小于10KB的比例
 	KVLT10KBRate float64
 }
-
-type uploadNormal map[string]uploadRawData
-type uploadSpecial map[string]*uploadRawDataKV
 
 var REG = regexp.MustCompile(`[\d]+`)
 
@@ -147,6 +148,7 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 		tempElem.statCont.SuccRate = (1 - errsum/allsum) * 100.0
 		tempElem.statCont.GT100msRate = (gt100ms / allsum) * 100.0
 		tempElem.statCont.GT500msRate = (gt500ms / allsum) * 100.0
+		tempElem.statCont.GT1000msRate = (gt1000ms / allsum) * 100.0
 		tempElem.statCont.LT1000msRate = (1 - gt1000ms/allsum) * 100.0
 		statBlock <- *tempElem
 	}
@@ -184,6 +186,7 @@ func encapTypeSpecial(records *statInfo, biz string, statBlock chan<- specialSta
 		tempElem.statCont.KVTotal = allsum / 60.0
 		tempElem.statCont.KVGT1KBRate = (ge1KB / allsum) * 100.0
 		tempElem.statCont.KVGT5KBRate = (ge5KB / allsum) * 100.0
+		tempElem.statCont.KVGT10KBRate = (ge10KB / allsum) * 100.0
 		tempElem.statCont.KVLT10KBRate = (1 - ge10KB/allsum) * 100.0
 		statBlock <- *tempElem
 	}

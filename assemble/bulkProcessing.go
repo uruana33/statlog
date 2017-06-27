@@ -125,6 +125,11 @@ func bulking(biz string, buffCont []byte) *statInfo {
 			continue
 		}
 		recordList := strings.Split((strings.TrimSpace(line)), "|")
+		if 12 != len(recordList) {
+			msg := fmt.Sprintf("%#v", recordList)
+			goLog.SendLog(msg, "ERROR", biz)
+			continue
+		}
 		//逐行处理
 		statFmtInit(&eachRecord, recordList, biz)
 	}

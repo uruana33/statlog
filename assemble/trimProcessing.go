@@ -18,14 +18,14 @@ type uploadRawData struct {
 	AvgTimeDelay float64
 	//最大延时
 	MaxTimeDelay float64
+	//延时大于10ms比例
+	GT10msRate float64
 	//延时大于100ms比例
 	GT100msRate float64
 	//延时大于500ms比例
 	GT500msRate float64
-	//延时大于1000ms比例
-	GT1000msRate float64
-	//延时小于1000ms比例
-	LT1000msRate float64
+	//延时小于500ms比例
+	LT500msRate float64
 	//返回码明细
 	RetCodeDetail map[int64]float64
 }
@@ -46,9 +46,6 @@ type uploadRawDataKV struct {
 	//key小于10KB的比例
 	KVLT10KBRate float64
 }
-
-type uploadNormal map[string]uploadRawData
-type uploadSpecial map[string]*uploadRawDataKV
 
 var REG = regexp.MustCompile(`[\d]+`)
 
@@ -121,9 +118,9 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 		tempElem.appidcmd = appidcmd
 		var allsum float64 = 0.0
 		var errsum float64 = 0.0
+		var gt10ms float64 = 0.0
 		var gt100ms float64 = 0.0
 		var gt500ms float64 = 0.0
-		var gt1000ms float64 = 0.0
 		//处理该命令字下的所有返回码
 		tempElem.statCont.RetCodeDetail = make(map[int64]float64, 0)
 		for retCode, contStruc := range retmap {
@@ -133,9 +130,9 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 			allsum += contStruc.total
 			//延时分布统计
 			if 0 == retCode {
-				gt100ms += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
-				gt500ms += contStruc.distri2 + contStruc.distri3
-				gt1000ms += contStruc.distri3
+				gt10ms += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
+				gt100ms += contStruc.distri2 + contStruc.distri3
+				gt500ms += contStruc.distri3
 				//平均值
 				tempElem.statCont.AvgTimeDelay = contStruc.avg / contStruc.accNum
 				//最大值
@@ -149,10 +146,10 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 		tempElem.statCont.REQTotal = allsum / 60.0
 		tempElem.statCont.ErrorCount = errsum / 60.0
 		tempElem.statCont.SuccRate = (1 - errsum/allsum) * 100.0
+		tempElem.statCont.GT10msRate = (gt10ms / allsum) * 100.0
 		tempElem.statCont.GT100msRate = (gt100ms / allsum) * 100.0
 		tempElem.statCont.GT500msRate = (gt500ms / allsum) * 100.0
-		tempElem.statCont.GT1000msRate = (gt1000ms / allsum) * 100.0
-		tempElem.statCont.LT1000msRate = (1 - gt1000ms/allsum) * 100.0
+		tempElem.statCont.LT500msRate = (1 - gt500ms/allsum) * 100.0
 		statBlock <- *tempElem
 	}
 }

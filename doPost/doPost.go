@@ -43,7 +43,7 @@ func Send() {
 
 	/*
 		go func() {
-			http.ListenAndServe("10.112.15.48:80", nil)
+			http.ListenAndServe("10.114.24.9:80", nil)
 		}()
 	*/
 
@@ -158,29 +158,41 @@ func dataKind(done chan<- struct{}, dataTypeChan chan<- DataType) {
 
 func PostFalcon(falconData <-chan assemble.FalconStruct, bizKey string) {
 
-	url := "http://ip:port/v1/push"
-	postList := make([]assemble.FalconStruct, 0)
+	url := "http://127.0.0.1:1988/v1/push"
+	postList := make([]assemble.FalconStruct, 1)
 	for postData := range falconData {
-		postList = append(postList, postData)
-		if len(postList) == 20 {
-			data, _ := json.Marshal(postList)
-			res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
-			if err != nil {
-				goLog.SendLog(err.Error(), "ERROR", bizKey)
-			}
-			postList = postList[:0]
-			res.Body.Close()
+		//postList = append(postList, postData)
+		postList[0] = postData
+		data, _ := json.Marshal(postList)
+		res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
+		if err != nil {
+			goLog.SendLog(err.Error(), "ERROR", bizKey)
 		}
+		res.Body.Close()
+
+		/*
+			if len(postList) == 20 {
+				data, _ := json.Marshal(postList)
+				res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
+				if err != nil {
+					goLog.SendLog(err.Error(), "ERROR", bizKey)
+				}
+				postList = postList[:0]
+				res.Body.Close()
+			}
+		*/
 
 	}
-	//post剩下的
-	data, _ := json.Marshal(postList[:len(postList)])
-	res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
-	if err != nil {
-		goLog.SendLog(err.Error(), "ERROR", bizKey)
-	}
-	res.Body.Close()
-	postList = postList[:0]
+	/*
+		//post剩下的
+		data, _ := json.Marshal(postList[:len(postList)])
+		res, err := http.Post(url, "application/json;charset=utf-8", bytes.NewBuffer(data))
+		if err != nil {
+			goLog.SendLog(err.Error(), "ERROR", bizKey)
+		}
+		res.Body.Close()
+		postList = postList[:0]
+	*/
 
 	return
 }

@@ -10,18 +10,15 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 )
 
-/*
-var WhiteList = make([]byte, 0)
-var InitCont = make([]byte, 0)
-var ServiceCont = make([]byte, 0)
-*/
-
 var WhiteListMap map[string]map[string][]int64
 var ServiceConfMap map[string]map[string]string
 
 func connect() *zk.Conn {
 
-	var zkhosts string = "ip(host):11000"
+	//测试环境ZK地址
+	//var zkhosts string = "zk1.staging.srv:2181,zk2.staging.srv:2181,zk3.staging.srv:2181,zk4.staging.srv:2181"
+	//线上环境ZK地址
+	var zkhosts string = "10.136.5.11:11000,10.136.4.11:11000,10.136.4.34:11000,10.136.4.54:11000,10.136.4.50:11000"
 	var servers []string = strings.Split(zkhosts, ",")
 	conn, _, err := zk.Connect(servers, time.Second*3)
 	if err != nil {
@@ -68,13 +65,11 @@ func GetZKConfig() {
 	for {
 		select {
 		case snap1 := <-snapshots1:
-			//WhiteList = snap1
 			WhiteListMap = getWhiteListMap(snap1)
 		case err1 := <-errs1:
 			panic(err1)
 
 		case snap2 := <-snapshots2:
-			//ServiceCont = snap2
 			ServiceConfMap = getServiceConf(snap2)
 		case err2 := <-errs2:
 			panic(err2)

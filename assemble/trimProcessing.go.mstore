@@ -47,9 +47,6 @@ type uploadRawDataKV struct {
 	KVLT10KBRate float64
 }
 
-type uploadNormal map[string]*uploadRawData
-type uploadSpecial map[string]*uploadRawDataKV
-
 var REG = regexp.MustCompile(`[\d]+`)
 
 func getCmdName(appidcmd string) (appid string, cmdword string) {
