@@ -2,8 +2,8 @@ package cron
 
 import (
 	"log"
-	"statUpload/doPost"
-	"statUpload/doReport"
+	"statlog/doPost"
+	"statlog/doReport"
 
 	"github.com/robfig/cron"
 )

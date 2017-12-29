@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"statUpload/goLog"
-	"statUpload/isFile"
-	"statUpload/parseConfig"
+	"statlog/goLog"
+	"statlog/isFile"
+	"statlog/parseConfig"
 	"strconv"
 	"strings"
 	"syscall"
@@ -96,6 +96,7 @@ func writeRawLog(records *statInfo, kind string, biz string) {
 
 	for logCmd, logMap := range *records {
 		for logRetcode, logRetCont := range logMap {
+			/*
 			//格式:时间 | 命令字 | 返回码 | 出现次数 | 访问量 | 平均延时 | 最大延时 | 大于10ms次数 | 大于100ms次数 | 大于500ms次数
 			fmt.Fprintf(bwlogBuffer, "%s | %s | %d | %d | %d | %.3f | %.3f | %d | %d | %d\n",
 				tPreMinStr,
@@ -108,6 +109,17 @@ func writeRawLog(records *statInfo, kind string, biz string) {
 				int64(logRetCont.distri1),
 				int64(logRetCont.distri2),
 				int64(logRetCont.distri3))
+			*/
+
+			//格式:时间 | 命令字 | 返回码 | 出现次数 | 访问量 | 平均延时
+			fmt.Fprintf(bwlogBuffer, "%s | %s | %d | %d | %d | %.3f\n",
+				tPreMinStr,
+				logCmd,
+				logRetcode,
+				int64(logRetCont.accNum),
+				int64(logRetCont.total),
+				logRetCont.avg/logRetCont.accNum)
+
 		}
 	}
 	fmt.Fprint(bwlogBuffer, "\n")

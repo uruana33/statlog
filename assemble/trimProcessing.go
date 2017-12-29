@@ -2,7 +2,7 @@ package assemble
 
 import (
 	"regexp"
-	"statUpload/zkconfig"
+	"statlog/zkconfig"
 	"strings"
 )
 
@@ -11,11 +11,13 @@ type uploadRawData struct {
 	//总访问量
 	REQTotal float64
 	//返回码不为零的总量
-	ErrorCount float64
+	//ErrorCount float64
 	//成功率
 	SuccRate float64
 	//平均延时
 	AvgTimeDelay float64
+
+	/*
 	//最大延时
 	MaxTimeDelay float64
 	//延时大于10ms比例
@@ -28,6 +30,7 @@ type uploadRawData struct {
 	LT500msRate float64
 	//返回码明细
 	RetCodeDetail map[int64]float64
+	*/
 }
 
 type uploadRawDataKV struct {
@@ -35,6 +38,8 @@ type uploadRawDataKV struct {
 	KVTotal float64
 	//平均key大小
 	KVAvgByte float64
+
+	/*
 	//最大key大小
 	KVMaxByte float64
 	//key大于1KB的比例
@@ -45,6 +50,7 @@ type uploadRawDataKV struct {
 	KVGT10KBRate float64
 	//key小于10KB的比例
 	KVLT10KBRate float64
+	*/
 }
 
 var REG = regexp.MustCompile(`[\d]+`)
@@ -114,42 +120,59 @@ func encapTypeNormal(records *statInfo, biz string, statBlock chan<- normalStatP
 	//存放命令字信息
 	tempElem := new(normalStatPiece)
 	for appidcmd, retmap := range *records {
-
 		tempElem.appidcmd = appidcmd
 		var allsum float64 = 0.0
 		var errsum float64 = 0.0
+
+		/*
 		var gt10ms float64 = 0.0
 		var gt100ms float64 = 0.0
 		var gt500ms float64 = 0.0
+
 		//处理该命令字下的所有返回码
 		tempElem.statCont.RetCodeDetail = make(map[int64]float64, 0)
+		*/
+
 		for retCode, contStruc := range retmap {
+			/*
 			//返回码明细
 			tempElem.statCont.RetCodeDetail[retCode] = contStruc.total / 60.0
+			*/
+
 			//总访问量
 			allsum += contStruc.total
-			//延时分布统计
+
 			if 0 == retCode {
+				//平均延时
+				tempElem.statCont.AvgTimeDelay = contStruc.avg / contStruc.accNum
+				/*
+				//延时分布
 				gt10ms += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
 				gt100ms += contStruc.distri2 + contStruc.distri3
 				gt500ms += contStruc.distri3
-				//平均值
-				tempElem.statCont.AvgTimeDelay = contStruc.avg / contStruc.accNum
 				//最大值
 				tempElem.statCont.MaxTimeDelay = contStruc.max
+				*/
 			}
+
 			if 0 != retCode {
 				errsum += errNum(retCode, contStruc.total, appidcmd, biz)
 			}
 		}
+		if allsum == 0.0 {
+			continue
+		}
 		//针对该命令字的封装:tempElem结构
 		tempElem.statCont.REQTotal = allsum / 60.0
-		tempElem.statCont.ErrorCount = errsum / 60.0
+		//tempElem.statCont.ErrorCount = errsum / 60.0
 		tempElem.statCont.SuccRate = (1 - errsum/allsum) * 100.0
+		/*
 		tempElem.statCont.GT10msRate = (gt10ms / allsum) * 100.0
 		tempElem.statCont.GT100msRate = (gt100ms / allsum) * 100.0
 		tempElem.statCont.GT500msRate = (gt500ms / allsum) * 100.0
 		tempElem.statCont.LT500msRate = (1 - gt500ms/allsum) * 100.0
+		*/
+
 		statBlock <- *tempElem
 	}
 }
@@ -163,31 +186,39 @@ func encapTypeSpecial(records *statInfo, biz string, statBlock chan<- specialSta
 			continue
 		}
 		var allsum float64 = 0.0
+		/*
 		var ge1KB float64 = 0.0
 		var ge5KB float64 = 0.0
 		var ge10KB float64 = 0.0
+		*/
 		//处理该命令字下的所有返回码
 		for retCode, contStruc := range retmap {
 			//总访问量
 			allsum += contStruc.total
-			//Key大小分布统计
+
 			if 0 == retCode {
+				//平均值
+				tempElem.statCont.KVAvgByte = contStruc.avg / contStruc.accNum
+
+				/*
+				//Key大小分布统计
 				ge1KB += contStruc.distri1 + contStruc.distri2 + contStruc.distri3
 				ge5KB += contStruc.distri2 + contStruc.distri3
 				ge10KB += contStruc.distri3
-				//平均值
-				tempElem.statCont.KVAvgByte = contStruc.avg / contStruc.accNum
 				//最大值
 				tempElem.statCont.KVMaxByte = contStruc.max
+				*/
 			}
 		}
 		//针对该命令字的封装:tempElem结构
 		tempElem.appidcmd = appidcmd
 		tempElem.statCont.KVTotal = allsum / 60.0
+		/*
 		tempElem.statCont.KVGT1KBRate = (ge1KB / allsum) * 100.0
 		tempElem.statCont.KVGT5KBRate = (ge5KB / allsum) * 100.0
 		tempElem.statCont.KVGT10KBRate = (ge10KB / allsum) * 100.0
 		tempElem.statCont.KVLT10KBRate = (1 - ge10KB/allsum) * 100.0
+		*/
 		statBlock <- *tempElem
 	}
 }

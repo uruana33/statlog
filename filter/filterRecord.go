@@ -13,7 +13,11 @@ inpurt:stat日志文件名
 output:上一分钟的日志内容,string类型的buffer
 */
 
-func ReadRecord(fileName string, biz string) []byte {
+func ReadRecord(fileName string) []byte {
+
+	if 0 == len(fileName) {
+		return nil
+	}
 
 	ff, err := os.OpenFile(fileName, syscall.O_RDONLY, 0666)
 	defer ff.Close()
@@ -24,18 +28,22 @@ func ReadRecord(fileName string, biz string) []byte {
 	fstat, _ := os.Stat(fileName)
 	fileSize := fstat.Size()
 
-	//预读取大小2MB
-	var scanRange int64 = 2 * 1024 * 1024
+	//预读取大小1MB
+	var scanRange int64 = 1 * 1024 * 1024
 	buff := make([]byte, scanRange)
+	//从文件末尾往前读
 	ff.Seek(-scanRange, os.SEEK_END)
 	curBlockSize, _ := ff.Read(buff)
 	allScanRange := int64(curBlockSize)
+
+	//判断是否完成整个文件的扫描
 	flag := false
 
 	//存放所有前一分钟时间字符串所在行的起始位置,按出现的倒序存放
 	preTimeStrList := make([]int64, 0)
 	//存放所有当前分钟时间字符串所在行的起始位置,按出现的倒序存放
 	curTimeStrList := make([]int64, 0)
+
 	reTitle, _ := regexp.Compile(`=+`)
 	reTimeStr, _ := regexp.Compile(`[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}`)
 	strBuff := make([]byte, 100)
@@ -75,7 +83,7 @@ Over:
 			}
 		}
 
-		//判断是否完成整个文件的扫描
+
 		if flag {
 			break Over
 		}

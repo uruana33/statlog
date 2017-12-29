@@ -2,7 +2,7 @@ package assemble
 
 import (
 	"regexp"
-	"statUpload/zkconfig"
+	"statlog/zkconfig"
 	"strings"
 )
 

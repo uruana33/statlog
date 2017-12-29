@@ -5,8 +5,8 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"statUpload/isFile"
-	"statUpload/parseConfig"
+	"statlog/isFile"
+	"statlog/parseConfig"
 	"syscall"
 	"time"
 )

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"statUpload/parseConfig"
-	"statUpload/zkconfig"
+	"statlog/parseConfig"
+	"statlog/zkconfig"
 	"strconv"
 	"strings"
 	"time"
@@ -144,10 +144,12 @@ func falconFormat(uploadChan interface{}, biz string, jsonData chan<- FalconStru
 			for i := 0; i < refDataType.NumField(); i++ {
 				//对返回码明细进行特殊处理,Metric不一样
 				if "RetCodeDetail" == refDataType.Field(i).Name {
+					/*
 					for statCode, statValue := range myUpload.statCont.RetCodeDetail {
 						eachjson := formatStatusCode(tPreMin, appid, cmdword, serviceName, servicePort, statCode, statValue)
 						jsonData <- *eachjson
 					}
+					*/
 					continue
 				}
 				itemName := refDataType.Field(i).Name

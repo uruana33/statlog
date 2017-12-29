@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"statUpload/goLog"
-	"statUpload/parseConfig"
-	"statUpload/zkconfig"
+	"statlog/goLog"
+	"statlog/parseConfig"
+	"statlog/zkconfig"
 	"strings"
 	"time"
 

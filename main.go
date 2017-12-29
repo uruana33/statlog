@@ -3,9 +3,9 @@ package main
 import (
 	//_ "net/http/pprof"
 	"os"
-	"statUpload/cron"
-	"statUpload/parseConfig"
-	"statUpload/zkconfig"
+	"statlog/cron"
+	"statlog/parseConfig"
+	"statlog/zkconfig"
 	"time"
 )
 

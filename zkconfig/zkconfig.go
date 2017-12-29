@@ -2,7 +2,7 @@ package zkconfig
 
 import (
 	"log"
-	"statUpload/parseConfig"
+	"statlog/parseConfig"
 	"strconv"
 	"strings"
 	"time"

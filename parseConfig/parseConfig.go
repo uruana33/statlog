@@ -1,7 +1,7 @@
 package parseConfig
 
 import (
-	"statUpload/isFile"
+	"statlog/isFile"
 
 	"github.com/echou/toml"
 )

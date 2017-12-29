@@ -3,7 +3,7 @@ package assemble
 import (
 	"fmt"
 	"regexp"
-	"statUpload/goLog"
+	"statlog/goLog"
 	"strconv"
 	"strings"
 )
@@ -12,11 +12,6 @@ type retCont struct {
 	accNum  float64 `该返回码出现的次数`
 	total   float64 `该返回码被访问的次数`
 	avg     float64 `该返回码延时(或其他含义)平均值`
-	max     float64 `该返回码延时(或其他含义)最大值`
-	min     float64 `该返回码延时(或其他含义)最小值`
-	distri1 float64 `该返回码延时分布(或其他含义)大于A范围次数`
-	distri2 float64 `该返回码延时分布(或其他含义)大于B范围次数`
-	distri3 float64 `该返回码延时分布(或其他含义)大于C范围次数`
 }
 
 //第一个key为string:appid和命令字,例如:290001_CMD_GET
@@ -54,39 +49,6 @@ func statFmtInit(eachRecord *statInfo, eachLine []string, biz string) {
 		msg := fmt.Sprintf("convert avg:<%s><%s>", eachLine[4], err)
 		goLog.SendLog(msg, "ERROR", biz)
 	}
-	//某一返回码对应的最大延时
-	retTemp.max, err = strconv.ParseFloat(strings.TrimSpace(eachLine[5]), 64)
-	if err != nil {
-		retTemp.max = 0.0
-		msg := fmt.Sprintf("convert max:<%s><%s>", eachLine[5], err)
-		goLog.SendLog(msg, "ERROR", biz)
-	}
-	//某一返回码对应的最小延时
-	retTemp.min, err = strconv.ParseFloat(strings.TrimSpace(eachLine[6]), 64)
-	if err != nil {
-		retTemp.min = 0.0
-		msg := fmt.Sprintf("convert min:<%s><%s>", eachLine[6], err)
-		goLog.SendLog(msg, "ERROR", biz)
-	}
-	//某一返回码对应的延时分布
-	retTemp.distri1, err = strconv.ParseFloat(strings.TrimSpace(eachLine[8]), 64)
-	if err != nil {
-		retTemp.distri1 = 0.0
-		msg := fmt.Sprintf("convert distri1:<%s><%s>", eachLine[8], err)
-		goLog.SendLog(msg, "ERROR", biz)
-	}
-	retTemp.distri2, err = strconv.ParseFloat(strings.TrimSpace(eachLine[9]), 64)
-	if err != nil {
-		retTemp.distri2 = 0.0
-		msg := fmt.Sprintf("convert distri2:<%s><%s>", eachLine[9], err)
-		goLog.SendLog(msg, "ERROR", biz)
-	}
-	retTemp.distri3, err = strconv.ParseFloat(strings.TrimSpace(eachLine[10]), 64)
-	if err != nil {
-		retTemp.distri3 = 0.0
-		msg := fmt.Sprintf("convert distri3:<%s><%s>", eachLine[10], err)
-		goLog.SendLog(msg, "ERROR", biz)
-	}
 
 	//命令字不存在
 	if _, ok := (*eachRecord)[cmdWord]; !ok {
@@ -103,28 +65,19 @@ func statFmtInit(eachRecord *statInfo, eachLine []string, biz string) {
 	(*eachRecord)[cmdWord][codeInt].total += retTemp.total
 	//该命令字的返回码平均延时总和
 	(*eachRecord)[cmdWord][codeInt].avg += retTemp.avg
-	//该命令字的返回码的最大延时
-	if (*eachRecord)[cmdWord][codeInt].max <= retTemp.max {
-		(*eachRecord)[cmdWord][codeInt].max = retTemp.max
-	}
-	//只有返回码为0的情况下,才对下面的参数进行统计
-	if 0 == codeInt {
-		(*eachRecord)[cmdWord][codeInt].distri1 += retTemp.distri1
-		(*eachRecord)[cmdWord][codeInt].distri2 += retTemp.distri2
-		(*eachRecord)[cmdWord][codeInt].distri3 += retTemp.distri3
-	}
+
 }
 
 func bulking(biz string, buffCont []byte) *statInfo {
 	if 0 == len(buffCont) {
 		return nil
 	}
-	eachRecord := make(statInfo)
+	eachRecord := make(statInfo, 20)
 	for _, line := range strings.Split(string(buffCont), "\n") {
 		if ignLine(line) {
 			continue
 		}
-		recordList := strings.Split((strings.TrimSpace(line)), "|")
+		recordList := strings.Split(strings.TrimSpace(line), "|")
 		if 12 != len(recordList) {
 			msg := fmt.Sprintf("%#v", recordList)
 			goLog.SendLog(msg, "ERROR", biz)
