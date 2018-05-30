@@ -15,10 +15,7 @@ var ServiceConfMap map[string]map[string]string
 
 func connect() *zk.Conn {
 
-	//测试环境ZK地址
-	//var zkhosts string = "zk1.staging.srv:2181,zk2.staging.srv:2181,zk3.staging.srv:2181,zk4.staging.srv:2181"
-	//线上环境ZK地址
-	var zkhosts string = "10.136.5.11:11000,10.136.4.11:11000,10.136.4.34:11000,10.136.4.54:11000,10.136.4.50:11000"
+	var zkhosts string = "IP1:PORT1,IP2:PORT2"
 	var servers []string = strings.Split(zkhosts, ",")
 	conn, _, err := zk.Connect(servers, time.Second*3)
 	if err != nil {
